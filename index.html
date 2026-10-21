@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang=""en"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>K-Means Convergence Sandbox</title>
+    <style>
+        :root {
+            --bg-slate: #0f172a;
+            --card-slate: #1e293b;
+            --border-slate: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --amber-accent: #f59e0b;
+            --amber-glow: rgba(245, 158, 11, 0.15);
+            --amber-hover: #d97706;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-slate);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2rem;
+            border-bottom: 1px solid var(--border-slate);
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 10px;
+            height: 10px;
+            background-color: var(--amber-accent);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--amber-accent);
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            background-color: var(--amber-glow);
+            color: var(--amber-accent);
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            font-weight: 500;
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background-color: var(--card-slate);
+            border: 1px solid var(--border-slate);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .panel-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        label span {
+            color: var(--amber-accent);
+            font-family: monospace;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--amber-accent);
+            background: var(--border-slate);
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        button {
+            background-color: var(--border-slate);
+            color: var(--text-main);
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background-color: #475569;
+        }
+
+        button.primary {
+            background-color: var(--amber-accent);
+            color: #0f172a;
+        }
+
+        button.primary:hover {
+            background-color: var(--amber-hover);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .metric-card {
+            background-color: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border-slate);
+            border-radius: 8px;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .metric-value {
+            font-size: 1.125rem;
+            font-weight: 700;
+            font-family: monospace;
+        }
+
+        .canvas-container {
+            position: relative;
+            flex: 1;
+            background-color: #0b1120;
+            border: 1px solid var(--border-slate);
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 450px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .canvas-overlay-tip {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--border-slate);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .export-box {
+            background-color: #0b1120;
+            border: 1px solid var(--border-slate);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            height: 100px;
+            overflow-y: auto;
+            white-space: pre;
+            resize: none;
+            width: 100%;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-slate);
+            padding-bottom: 0.5rem;
+        }
+
+        .tab {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .tab.active {
+            color: var(--amber-accent);
+            background-color: var(--amber-glow);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--border-slate);
+            transition: .2s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .2s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--amber-accent);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(16px);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class=""logo-area"">
+            <div class=""logo-icon""></div>
+            <h1>K-Means Convergence Sandbox</h1>
+        </div>
+        <div class=""badge"">ecd82e985c82</div>
+    </header>
+
+    <main>
+        <!-- Control Panel -->
+        <div class=""panel"">
+            <div>
+                <div class=""panel-title"">Parameters</div>
+                <div style="height: 0.5rem;"></div>
+                <div class=""control-group"">
+                    <label>Clusters (K): <span id="k-val">3</span></label>
+                    <input type=""range"" id="k-slider" min=""1"" max=""8"" value=""3"">
+                </div>
+                <div style="height: 0.75rem;"></div>
+                <div class=""control-group"">
+                    <label>Data Points: <span id="points-val">150</span></label>
+                    <input type=""range"" id="points-slider" min=""20"" max=""500"" step=""10"" value=""150"">
+                </div>
+            </div>
+
+            <div class=""btn-grid"">
+                <button id="btn-generate" class=""primary"">Regenerate</button>
+                <button id="btn-step">Single Step</button>
+            </div>
+
+            <div class=""btn-grid"">
+                <button id="btn-run" style="grid-column: span 2;">Run Auto-Convergence</button>
+            </div>
+
+            <div>
+                <div class=""panel-title"">Visual Options</div>
+                <div style="height: 0.5rem;"></div>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div class=""toggle-row"">
+                        <span style="font-size: 0.875rem;">Voronoi Boundaries</span>
+                        <label class=""switch">
+                            <input type=""checkbox"" id="toggle-voronoi" checked>
+                            <span class=""slider""></span>
+                        </label>
+                    </div>
+                    <div class=""toggle-row"">
+                        <span style="font-size: 0.875rem;">Centroid Trails</span>
+                        <label class=""switch">
+                            <input type=""checkbox"" id="toggle-trails" checked>
+                            <span class=""slider""></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class=""panel-title"">Analytics</div>
+                <div style="height: 0.5rem;"></div>
+                <div class=""metrics-grid"">
+                    <div class=""metric-card">
+                        <span class=""metric-label"">Iterations</span>
+                        <span id="metric-iter" class=""metric-value"">0</span>
+                    </div>
+                    <div class=""metric-card">
+                        <span class=""metric-label"">Inertia (WCSS)</span>
+                        <span id="metric-inertia" class=""metric-value"">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: auto;">
+                <div class=""tabs"">
+                    <button class=""tab active"" data-tab="json">JSON</button>
+                    <button class=""tab"" data-tab="python">Python Code</button>
+                </div>
+                <div style="height: 0.5rem;"></div>
+                <textarea id="export-output" class=""export-box"" readonly></textarea>
+                <div style="height: 0.5rem;"></div>
+                <button id="btn-copy" style="width: 100%;">Copy Code / Dataset</button>
+            </div>
+        </div>
+
+        <!-- Interactive Visualizer -->
+        <div class=""panel"" style="padding: 1rem; display: flex; flex-direction: column;">
+            <div class=""canvas-container"">
+                <canvas id="sim-canvas"></canvas>
+                <div class=""canvas-overlay-tip"">Click canvas to add custom points</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const PALETTE = [
+            '#f59e0b', // Amber
+            '#38bdf8', // Sky Blue
+            '#34d399', // Emerald
+            '#f43f5e', // Rose
+            '#a78bfa', // Purple
+            '#fb923c', // Orange
+            '#2dd4bf', // Teal
+            '#e879f9'  // Fuchsia
+        ];
+
+        const canvas = document.getElementById('sim-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let points = [];
+        let centroids = [];
+        let history = [];
+        let iterations = 0;
+        let isRunning = false;
+        let converged = false;
+        let activeTab = 'json';
+
+        // UI Elements
+        const kSlider = document.getElementById('k-slider');
+        const kVal = document.getElementById('k-val');
+        const pointsSlider = document.getElementById('points-slider');
+        const pointsVal = document.getElementById('points-val');
+        const metricIter = document.getElementById('metric-iter');
+        const metricInertia = document.getElementById('metric-inertia');
+        const toggleVoronoi = document.getElementById('toggle-voronoi');
+        const toggleTrails = document.getElementById('toggle-trails');
+        const exportOutput = document.getElementById('export-output');
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            draw();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function initData() {
+            const count = parseInt(pointsSlider.value);
+            points = [];
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+
+            // Generate clustered data blobs
+            const numBlobs = Math.min(4, parseInt(kSlider.value));
+            const blobCenters = [];
+            for (let i = 0; i < numBlobs; i++) {
+                blobCenters.push({
+                    x: w * (0.2 + 0.6 * Math.random()),
+                    y: h * (0.2 + 0.6 * Math.random())
+                });
+            }
+
+            for (let i = 0; i < count; i++) {
+                const center = blobCenters[Math.floor(Math.random() * blobCenters.length)];
+                const angle = Math.random * Math.PI * 2;
+                const r = Math.random() * 80;
+                points.push({
+                    x: Math.max(20, Math.min(w - 20, center.x + Math.cos(angle) * r)),
+                    y: Math.max(20, Math.min(h - 20, center.y + Math.sin(angle) * r)),
+                    cluster: -1
+                });
+            }
+
+            initCentroids();
+        }
+
+        function initCentroids() {
+            const k = parseInt(kSlider.value);
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            centroids = [];
+            history = [];
+            iterations = 0;
+            converged = false;
+
+            // Random initial placement from existing points
+            const shuffled = [...points].sort(() => 0.5 - Math.random());
+            for (let i = 0; i < k; i++) {
+                if (shuffled[i]) {
+                    centroids.push({
+                        x: shuffled[i].x,
+                        y: shuffled[i].y,
+                        trail: [{x: shuffled[i].x, y: shuffled[i].y}]
+                    });
+                } else {
+                    centroids.push({
+                        x: w * Math.random(),
+                        y: h * Math.random(),
+                        trail: []
+                    });
+                }
+            }
+            assignClusters();
+            updateMetrics();
+            updateExport();
+            draw();
+        }
+
+        function assignClusters() {
+            let changed = false;
+            points.forEach(p => {
+                let minDist = Infinity;
+                let bestC = -1;
+                centroids.forEach((c, idx) => {
+                    const dist = (p.x - c.x) ** 2 + (p.y - c.y) ** 2;
+                    if (dist < minDist) {
+                        minDist = dist;
+                        bestC = idx;
+                    }
+                });
+                if (p.cluster !== bestC) {
+                    p.cluster = bestC;
+                    changed = true;
+                }
+            });
+            return changed;
+        }
+
+        function updateCentroids() {
+            const k = centroids.length;
+            const sums = Array.from({length: k}, () => ({x: 0, y: 0, count: 0}));
+
+            points.forEach(p => {
+                if (p.cluster !== -1) {
+                    sums[p.cluster].x += p.x;
+                    sums[p.cluster].y += p.y;
+                    sums[p.cluster].count += 1;
+                }
+            });
+
+            let maxMovement = 0;
+            centroids.forEach((c, idx) => {
+                if (sums[idx].count > 0) {
+                    const newX = sums[idx].x / sums[idx].count;
+                    const newY = sums[idx].y / sums[idx].count;
+                    const movement = Math.hypot(newX - c.x, newY - c.y);
+                    maxMovement = Math.max(maxMovement, movement);
+
+                    c.x = newX;
+                    c.y = newY;
+                    if (toggleTrails.checked) {
+                        c.trail.push({x: newX, y: newY});
+                    }
+                }
+            });
+
+            return maxMovement > 0.1;
+        }
+
+        function stepSimulation() {
+            if (converged) return;
+            iterations++;
+            const assignmentChanged = assignClusters();
+            const centroidMoved = updateCentroids();
+
+            if (!assignmentChanged && !centroidMoved) {
+                converged = true;
+                isRunning = false;
+            }
+
+            updateMetrics();
+            updateExport();
+            draw();
+        }
+
+        function updateMetrics() {
+            metricIter.textContent = iterations;
+            let inertia = 0;
+            points.forEach(p => {
+                if (p.cluster !== -1 && centroids[p.cluster]) {
+                    const c = centroids[p.cluster];
+                    inertia += (p.x - c.x) ** 2 + (p.y - c.y) ** 2;
+                }
+            });
+            metricInertia.textContent = inertia.toFixed(0);
+        }
+
+        function draw() {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Voronoi approximation
+            if (toggleVoronoi.checked && centroids.length > 0) {
+                const step = 10;
+                for (let x = 0; x < w; x += step) {
+                    for (let y = 0; y < h; y += step) {
+                        let minDist = Infinity;
+                        let bestC = 0;
+                        centroids.forEach((c, idx) => {
+                            const dist = (x - c.x) ** 2 + (y - c.y) ** 2;
+                            if (dist < minDist) {
+                                minDist = dist;
+                                bestC = idx;
+                            }
+                        });
+                        ctx.fillStyle = PALETTE[bestC % PALETTE.length] + '15';
+                        ctx.fillRect(x, y, step, step);
+                    }
+                }
+            }
+
+            // Draw Centroid Trails
+            if (toggleTrails.checked) {
+                centroids.forEach((c, idx) => {
+                    if (c.trail.length > 1) {
+                        ctx.beginPath();
+                        ctx.moveTo(c.trail[0].x, c.trail[0].y);
+                        c.trail.forEach(pt => ctx.lineTo(pt.x, pt.y));
+                        ctx.strokeStyle = PALETTE[idx % PALETTE.length] + '60';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                });
+            }
+
+            // Draw Points
+            points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = p.cluster === -1 ? '#94a3b8' : PALETTE[p.cluster % PALETTE.length];
+                ctx.fill();
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            });
+
+            // Draw Centroids
+            centroids.forEach((c, idx) => {
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, 10, 0, Math.PI * 2);
+                ctx.fillStyle = PALETTE[idx % PALETTE.length];
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Centroid ID Label
+                ctx.fillStyle = '#0f172a';
+                ctx.font = 'bold 10px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(idx + 1, c.x, c.y);
+            });
+        }
+
+        function updateExport() {
+            if (activeTab === 'json') {
+                const data = {
+                    k: centroids.length,
+                    iterations: iterations,
+                    centroids: centroids.map(c => ({x: Math.round(c.x), y: Math.round(c.y)})),
+                    points: points.map(p => ({x: Math.round(p.x), y: Math.round(p.y), cluster: p.cluster}))
+                };
+                exportOutput.value = JSON.stringify(data, null, 2);
+            } else {
+                exportOutput.value = `# Python Scikit-Learn Replica Setup
+import numpy as np
+from sklearn.cluster import KMeans
+
+# Generated dataset (${points.length} samples)
+X = np.array([
+${points.map(p => `    [${p.x.toFixed(1)}, ${p.y.toFixed(1)}]`).join(',\n')}
+])
+
+kmeans = KMeans(n_clusters=${centroids.length}, init='random', n_init=10, max_iter=${iterations || 1})
+kmeans.fit(X)
+print("Cluster Centers:", kmeans.cluster_centers_)`;
+            }
+        }
+
+        // Event Listeners
+        kSlider.addEventListener('input', (e) => {
+            kVal.textContent = e.target.value;
+            initCentroids();
+        });
+
+        pointsSlider.addEventListener('input', (e) => {
+            pointsVal.textContent = e.target.value;
+            initData();
+        });
+
+        document.getElementById('btn-generate').addEventListener('click', () => {
+            isRunning = false;
+            initData();
+        });
+
+        document.getElementById('btn-step').addEventListener('click', () => {
+            isRunning = false;
+            stepSimulation();
+        });
+
+        const runBtn = document.getElementById('btn-run');
+        runBtn.addEventListener('click', () => {
+            if (converged) initCentroids();
+            isRunning = !isRunning;
+            runBtn.textContent = isRunning ? 'Pause Convergence' : 'Run Auto-Convergence';
+            runBtn.classList.toggle('primary', isRunning);
+            if (isRunning) loop();
+        });
+
+        function loop() {
+            if (!isRunning || converged) return;
+            stepSimulation();
+            setTimeout(() => requestAnimationFrame(loop), 150);
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            points.push({x, y, cluster: -1});
+            assignClusters();
+            updateMetrics();
+            updateExport();
+            draw();
+        });
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+                activeTab = e.target.getAttribute('data-tab');
+                updateExport();
+            });
+        });
+
+        document.getElementById('btn-copy').addEventListener('click', () => {
+            exportOutput.select();
+            navigator.clipboard.writeText(exportOutput.value);
+            const btn = document.getElementById('btn-copy');
+            const origText = btn.textContent;
+            btn.textContent = 'Copied to Clipboard!';
+            setTimeout(() => btn.textContent = origText, 1500);
+        });
+
+        // Initial Boot
+        setTimeout(() => {
+            resizeCanvas();
+            initData();
+        }, 50);
+    </script>
+</body>
+</html>"
+}
